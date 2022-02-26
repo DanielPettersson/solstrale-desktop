@@ -13,7 +13,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"github.com/DanielPettersson/solstrale"
+	"github.com/DanielPettersson/solstrale-desktop/controller"
 	"github.com/DanielPettersson/solstrale/camera"
 	"github.com/DanielPettersson/solstrale/geo"
 	"github.com/DanielPettersson/solstrale/hittable"
@@ -21,8 +21,15 @@ import (
 	"github.com/DanielPettersson/solstrale/spec"
 )
 
+var (
+	grassImage *image.Image = nil
+
+	cameraX float64 = -5
+)
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
+	loadTextures()
 
 	app := app.New()
 	window := app.NewWindow("Solstråle")
@@ -33,9 +40,6 @@ func main() {
 
 	var renderImage image.Image
 	renderImage = image.NewRGBA(image.Rect(0, 0, 1, 1))
-
-	abortRender := make(chan bool, 1)
-
 	raster := canvas.NewRaster(
 		func(w, h int) image.Image {
 			return renderImage
@@ -51,45 +55,52 @@ func main() {
 	}
 	stopButton.Disable()
 
-	runButton.OnTapped = func() {
-		runButton.Disable()
-		stopButton.Enable()
+	traceController := controller.NewTraceController(
+		func() *spec.Scene {
+			height := int(math.Round(float64(raster.Size().Height)))
+			width := int(math.Round(float64(raster.Size().Width)))
 
-		renderProgress := make(chan spec.TraceProgress, 1)
-
-		height := int(math.Round(float64(raster.Size().Height)))
-		width := int(math.Round(float64(raster.Size().Width)))
-
-		traceSpec := spec.TraceSpecification{
-			ImageWidth:      width,
-			ImageHeight:     height,
-			SamplesPerPixel: 1000,
-			MaxDepth:        50,
-			RandomSeed:      0,
-		}
-
-		scene := TestScene(traceSpec)
-
-		go solstrale.RayTrace(scene, renderProgress, abortRender)
-
-		go func() {
-			for p := range renderProgress {
-				renderImage = p.RenderImage
-				progress.SetValue(p.Progress)
-				raster.Refresh()
+			traceSpec := spec.TraceSpecification{
+				ImageWidth:      width,
+				ImageHeight:     height,
+				SamplesPerPixel: 1000,
+				MaxDepth:        50,
+				RandomSeed:      0,
 			}
+
+			return TestScene(traceSpec)
+		},
+		func(tp spec.TraceProgress) {
+			renderImage = tp.RenderImage
+			progress.SetValue(tp.Progress)
+			raster.Refresh()
+		},
+		func() {
+			runButton.Disable()
+			stopButton.Enable()
+		},
+		func() {
 			runButton.Enable()
 			stopButton.Disable()
-		}()
+		},
+	)
+
+	runButton.OnTapped = func() {
+		traceController.Update()
 	}
 
 	stopButton.OnTapped = func() {
-		runButton.Enable()
-		stopButton.Disable()
-		abortRender <- true
+		traceController.Stop()
 	}
 
-	topBar := container.New(layout.NewHBoxLayout(), &runButton, &stopButton)
+	slider := widget.NewSlider(-5, 5)
+	slider.Value = cameraX
+	slider.OnChanged = func(value float64) {
+		cameraX = value
+		traceController.Update()
+	}
+
+	topBar := container.New(layout.NewHBoxLayout(), &runButton, &stopButton, slider)
 
 	container := container.New(layout.NewBorderLayout(topBar, progress, nil, nil),
 		topBar, progress, raster)
@@ -97,7 +108,14 @@ func main() {
 	window.SetContent(container)
 	window.ShowAndRun()
 
-	abortRender <- true
+	traceController.Exit()
+}
+
+func loadTextures() {
+	f, _ := os.Open("grass.jpg")
+	defer f.Close()
+	gi, _, _ := image.Decode(f)
+	grassImage = &gi
 }
 
 func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
@@ -107,7 +125,7 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 		20,
 		0.8,
 		8.3,
-		geo.NewVec3(-5, 3, 6),
+		geo.NewVec3(cameraX, 3, 6),
 		geo.NewVec3(.25, 1, 0),
 		geo.NewVec3(0, 1, 0),
 	)
@@ -124,11 +142,8 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 		Scale:      .01,
 	}
 
-	f, _ := os.Open("grass.jpg")
-	defer f.Close()
-	image, _, _ := image.Decode(f)
 	imageTex := material.ImageTexture{
-		Image:  image,
+		Image:  *grassImage,
 		Mirror: false,
 	}
 
@@ -148,8 +163,8 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 		15,
 	))
 	world.Add(hittable.NewSphere(geo.NewVec3(2.1, 1, 0), 1, goldMat))
-	world.Add(hittable.NewSphere(geo.NewVec3(10, 5, 10), 10, lightMat))
-	world.Add(hittable.NewSphere(geo.NewVec3(-10, 5, 10), 3, lightMat))
+	world.Add(hittable.NewSphere(geo.NewVec3(10, 5, 16), 10, lightMat))
+	world.Add(hittable.NewSphere(geo.NewVec3(-10, 7, 16), 3, lightMat))
 
 	return &spec.Scene{
 		World:           &world,
