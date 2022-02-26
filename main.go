@@ -63,8 +63,8 @@ func main() {
 			width := int(math.Round(float64(raster.Size().Width)))
 
 			traceSpec := spec.TraceSpecification{
-				ImageWidth:      width / 2,
-				ImageHeight:     height / 2,
+				ImageWidth:      width,
+				ImageHeight:     height,
 				SamplesPerPixel: 1000,
 				MaxDepth:        50,
 				RandomSeed:      0,
