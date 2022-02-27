@@ -3,9 +3,7 @@ package main
 import (
 	"image"
 	"math"
-	"math/rand"
 	"os"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -30,7 +28,6 @@ var (
 )
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
 	loadTextures()
 
 	app := app.New()
@@ -67,7 +64,6 @@ func main() {
 				ImageHeight:     height,
 				SamplesPerPixel: 1000,
 				MaxDepth:        50,
-				RandomSeed:      0,
 			}
 
 			return TestScene(traceSpec)
@@ -96,16 +92,16 @@ func main() {
 	}
 
 	cameraX = binding.NewFloat()
-	cameraX.Set(-5)
-	cameraXLabel, cameraXSlider := sliderWithLabel(cameraX, traceController, "Camera X: %0.1f", -5, 5)
+	cameraX.Set(278)
+	cameraXLabel, cameraXSlider := sliderWithLabel(cameraX, traceController, "Camera X: %0.1f", 0, 555)
 
 	fieldOfView = binding.NewFloat()
-	fieldOfView.Set(20.)
+	fieldOfView.Set(40)
 	fieldOfViewLabel, fieldOfViewSlider := sliderWithLabel(fieldOfView, traceController, "Field of View: %0.1f", 1, 70)
 
 	apertureSize = binding.NewFloat()
-	apertureSize.Set(.8)
-	apertureSizeLabel, apertureSizeSlider := sliderWithLabel(apertureSize, traceController, "Aperture Size: %0.1f", 0, 3)
+	apertureSize.Set(0)
+	apertureSizeLabel, apertureSizeSlider := sliderWithLabel(apertureSize, traceController, "Aperture Size: %0.1f", 0, 20)
 
 	topBar := container.New(layout.NewHBoxLayout(), &runButton, &stopButton)
 	leftBar := container.New(
@@ -161,8 +157,8 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 	fieldOfViewValue, _ := fieldOfView.Get()
 	apertureSizeValue, _ := apertureSize.Get()
 
-	lookFrom := geo.NewVec3(cameraXValue, 3, 6)
-	lookAt := geo.NewVec3(0, 1, 0)
+	lookFrom := geo.NewVec3(cameraXValue, 278, -800)
+	lookAt := geo.NewVec3(278, 278, 0)
 	lookLength := lookFrom.Sub(lookAt).Length()
 
 	camera := camera.New(
@@ -176,44 +172,49 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 		geo.NewVec3(0, 1, 0),
 	)
 
+	red := material.Lambertian{Tex: material.SolidColor{ColorValue: geo.NewVec3(.65, .05, .05)}}
+	white := material.Lambertian{Tex: material.SolidColor{ColorValue: geo.NewVec3(.73, .73, .73)}}
+	green := material.Lambertian{Tex: material.SolidColor{ColorValue: geo.NewVec3(.12, .45, .15)}}
+	light := material.DiffuseLight{Emit: material.SolidColor{ColorValue: geo.NewVec3(10, 10, 10)}}
+	glass := material.Dielectric{
+		Tex:               material.SolidColor{ColorValue: geo.NewVec3(1, 1, .8)},
+		IndexOfRefraction: 1.33,
+	}
+
 	world := hittable.NewHittableList()
+	world.Add(hittable.NewQuad(geo.NewVec3(555, 0, 0), geo.NewVec3(0, 555, 0), geo.NewVec3(0, 0, 555), green))
+	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 0), geo.NewVec3(0, 555, 0), geo.NewVec3(0, 0, 555), red))
+	world.Add(hittable.NewQuad(geo.NewVec3(113, 554, 127), geo.NewVec3(330, 0, 0), geo.NewVec3(0, 0, 305), light))
+	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 0), geo.NewVec3(555, 0, 0), geo.NewVec3(0, 0, 555), white))
+	world.Add(hittable.NewQuad(geo.NewVec3(555, 555, 555), geo.NewVec3(-555, 0, 0), geo.NewVec3(0, 0, -555), white))
+	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 555), geo.NewVec3(555, 0, 0), geo.NewVec3(0, 555, 0), white))
+	world.Add(hittable.NewSphere(geo.NewVec3(200, 265, 200), 100, glass))
+	world.Add(hittable.NewSphere(geo.NewVec3(200, 265, 200), -80, glass))
 
-	checkerTex := material.CheckerTexture{
-		Scale: 0.1,
-		Even:  material.SolidColor{ColorValue: geo.NewVec3(0.4, 0.2, 0.1)},
-		Odd:   material.SolidColor{ColorValue: geo.NewVec3(0.8, 0.4, 0.2)},
-	}
-	noiseTex := material.NoiseTexture{
-		ColorValue: geo.NewVec3(1, 1, 0),
-		Scale:      .01,
-	}
+	world.Add(
+		hittable.NewTranslation(
+			hittable.NewRotationY(
+				hittable.NewBox(geo.NewVec3(0, 0, 0), geo.NewVec3(165, 330, 165), white),
+				15,
+			),
+			geo.NewVec3(265, 0, 295),
+		),
+	)
 
-	imageTex := material.ImageTexture{
-		Image:  *grassImage,
-		Mirror: false,
-	}
-
-	groundMaterial := material.Lambertian{Tex: imageTex}
-	checkerMat := material.Lambertian{Tex: checkerTex}
-	glassMat := material.Dielectric{Tex: material.SolidColor{ColorValue: geo.NewVec3(1, 1, 1)}, IndexOfRefraction: 1.5}
-	goldMat := material.Metal{Tex: noiseTex, Fuzz: .2}
-	lightMat := material.DiffuseLight{Emit: material.SolidColor{ColorValue: geo.NewVec3(5, 5, 5)}}
-
-	world.Add(hittable.NewQuad(
-		geo.NewVec3(-5, 0, -5), geo.NewVec3(10, 0, 0), geo.NewVec3(0, 0, 10),
-		groundMaterial,
-	))
-	world.Add(hittable.NewSphere(geo.NewVec3(-1.5, 1, 0), 1, glassMat))
-	world.Add(hittable.NewBox(geo.NewVec3(-.5, 0, -.5), geo.NewVec3(.5, 2, .5), checkerMat))
-	world.Add(hittable.NewSphere(geo.NewVec3(1.5, 1, 0), 1, goldMat))
-
-	world.Add(hittable.NewSphere(geo.NewVec3(10, 5, 16), 10, lightMat))
-	world.Add(hittable.NewSphere(geo.NewVec3(-10, 7, 16), 3, lightMat))
+	world.Add(
+		hittable.NewTranslation(
+			hittable.NewRotationY(
+				hittable.NewBox(geo.NewVec3(0, 0, 0), geo.NewVec3(165, 165, 165), white),
+				-18,
+			),
+			geo.NewVec3(130, 0, 65),
+		),
+	)
 
 	return &spec.Scene{
 		World:           &world,
 		Cam:             camera,
-		BackgroundColor: geo.NewVec3(.05, .1, .2),
+		BackgroundColor: geo.NewVec3(0, 0, 0),
 		Spec:            traceSpec,
 	}
 
