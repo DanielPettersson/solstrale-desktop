@@ -21,10 +21,12 @@ import (
 )
 
 var (
-	grassImage   *image.Image  = nil
-	cameraX      binding.Float = nil
-	fieldOfView  binding.Float = nil
-	apertureSize binding.Float = nil
+	grassImage     *image.Image  = nil
+	cameraX        binding.Float = nil
+	fieldOfView    binding.Float = nil
+	apertureSize   binding.Float = nil
+	lightSize      binding.Float = nil
+	lightIntensity binding.Float = nil
 )
 
 func main() {
@@ -33,8 +35,8 @@ func main() {
 	app := app.New()
 	window := app.NewWindow("Solstråle")
 	window.Resize(fyne.Size{
-		Width:  800,
-		Height: 450,
+		Width:  600,
+		Height: 400,
 	})
 
 	var renderImage image.Image
@@ -103,6 +105,14 @@ func main() {
 	apertureSize.Set(0)
 	apertureSizeLabel, apertureSizeSlider := sliderWithLabel(apertureSize, traceController, "Aperture Size: %0.1f", 0, 20)
 
+	lightSize = binding.NewFloat()
+	lightSize.Set(300)
+	lightSizeLabel, lightSizeSlider := sliderWithLabel(lightSize, traceController, "Light Size: %0.1f", 0, 300)
+
+	lightIntensity = binding.NewFloat()
+	lightIntensity.Set(10)
+	lightIntensityLabel, lightIntensitySlider := sliderWithLabel(lightIntensity, traceController, "Light Intensity: %0.1f", 0, 50)
+
 	topBar := container.New(layout.NewHBoxLayout(), &runButton, &stopButton)
 	leftBar := container.New(
 		layout.NewVBoxLayout(),
@@ -112,6 +122,10 @@ func main() {
 		fieldOfViewSlider,
 		apertureSizeLabel,
 		apertureSizeSlider,
+		lightSizeLabel,
+		lightSizeSlider,
+		lightIntensityLabel,
+		lightIntensitySlider,
 	)
 
 	container := container.New(layout.NewBorderLayout(topBar, progress, leftBar, nil),
@@ -156,6 +170,8 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 	cameraXValue, _ := cameraX.Get()
 	fieldOfViewValue, _ := fieldOfView.Get()
 	apertureSizeValue, _ := apertureSize.Get()
+	lightSizeValue, _ := lightSize.Get()
+	lightIntensityValue, _ := lightIntensity.Get()
 
 	lookFrom := geo.NewVec3(cameraXValue, 278, -800)
 	lookAt := geo.NewVec3(278, 278, 0)
@@ -175,7 +191,7 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 	red := material.Lambertian{Tex: material.SolidColor{ColorValue: geo.NewVec3(.65, .05, .05)}}
 	white := material.Lambertian{Tex: material.SolidColor{ColorValue: geo.NewVec3(.73, .73, .73)}}
 	green := material.Lambertian{Tex: material.SolidColor{ColorValue: geo.NewVec3(.12, .45, .15)}}
-	light := material.DiffuseLight{Emit: material.SolidColor{ColorValue: geo.NewVec3(10, 10, 10)}}
+	light := material.DiffuseLight{Emit: material.SolidColor{ColorValue: geo.NewVec3(lightIntensityValue, lightIntensityValue, lightIntensityValue)}}
 	glass := material.Dielectric{
 		Tex:               material.SolidColor{ColorValue: geo.NewVec3(1, 1, .8)},
 		IndexOfRefraction: 1.33,
@@ -184,7 +200,7 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 	world := hittable.NewHittableList()
 	world.Add(hittable.NewQuad(geo.NewVec3(555, 0, 0), geo.NewVec3(0, 555, 0), geo.NewVec3(0, 0, 555), green))
 	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 0), geo.NewVec3(0, 555, 0), geo.NewVec3(0, 0, 555), red))
-	world.Add(hittable.NewQuad(geo.NewVec3(113, 554, 127), geo.NewVec3(330, 0, 0), geo.NewVec3(0, 0, 305), light))
+	world.Add(hittable.NewQuad(geo.NewVec3(278-lightSizeValue/2, 554, 278-lightSizeValue/2), geo.NewVec3(lightSizeValue, 0, 0), geo.NewVec3(0, 0, lightSizeValue), light))
 	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 0), geo.NewVec3(555, 0, 0), geo.NewVec3(0, 0, 555), white))
 	world.Add(hittable.NewQuad(geo.NewVec3(555, 555, 555), geo.NewVec3(-555, 0, 0), geo.NewVec3(0, 0, -555), white))
 	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 555), geo.NewVec3(555, 0, 0), geo.NewVec3(0, 555, 0), white))
