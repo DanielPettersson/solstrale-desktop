@@ -3,7 +3,7 @@ package controller
 
 import (
 	"github.com/DanielPettersson/solstrale"
-	"github.com/DanielPettersson/solstrale/spec"
+	"github.com/DanielPettersson/solstrale/renderer"
 )
 
 // TraceController is used to control the flow of raytracing
@@ -12,8 +12,8 @@ type TraceController struct {
 	update        chan bool
 	stop          chan bool
 	exit          chan bool
-	getScene      func() *spec.Scene
-	progress      func(spec.TraceProgress)
+	getScene      func() *renderer.Scene
+	progress      func(renderer.RenderProgress)
 	renderStarted func()
 	renderStopped func()
 }
@@ -21,8 +21,8 @@ type TraceController struct {
 // NewTraceController creates a new TraceController with supplied
 // callback hooks for rendering events
 func NewTraceController(
-	getScene func() *spec.Scene,
-	progress func(spec.TraceProgress),
+	getScene func() *renderer.Scene,
+	progress func(renderer.RenderProgress),
 	renderStarted func(),
 	renderStopped func(),
 ) *TraceController {
@@ -63,7 +63,7 @@ func (tc *TraceController) loop() {
 		}
 
 		// Do the actual rendering
-		renderProgress := make(chan spec.TraceProgress, 1)
+		renderProgress := make(chan renderer.RenderProgress, 1)
 		abortRender := make(chan bool, 1)
 
 		tc.renderStarted()

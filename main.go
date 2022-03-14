@@ -17,7 +17,7 @@ import (
 	"github.com/DanielPettersson/solstrale/geo"
 	"github.com/DanielPettersson/solstrale/hittable"
 	"github.com/DanielPettersson/solstrale/material"
-	"github.com/DanielPettersson/solstrale/spec"
+	"github.com/DanielPettersson/solstrale/renderer"
 )
 
 var (
@@ -56,23 +56,35 @@ func main() {
 	}
 	stopButton.Disable()
 
+	shaderSelect := widget.Select{
+		Options: []string{"PathTracing", "Simple"},
+	}
+	shaderSelect.SetSelectedIndex(0)
+
 	traceController := controller.NewTraceController(
-		func() *spec.Scene {
+		func() *renderer.Scene {
 			height := int(math.Round(float64(raster.Size().Height)))
 			width := int(math.Round(float64(raster.Size().Width)))
 
-			traceSpec := spec.TraceSpecification{
+			var shader renderer.Shader
+			if shaderSelect.SelectedIndex() == 0 {
+				shader = renderer.PathTracingShader{MaxDepth: 50}
+			} else {
+				shader = renderer.SimpleShader{}
+			}
+
+			renderConfig := renderer.RenderConfig{
 				ImageWidth:      width,
 				ImageHeight:     height,
 				SamplesPerPixel: 1000,
-				MaxDepth:        50,
+				Shader:          shader,
 			}
 
-			return TestScene(traceSpec)
+			return TestScene(renderConfig)
 		},
-		func(tp spec.TraceProgress) {
-			renderImage = tp.RenderImage
-			progress.SetValue(tp.Progress)
+		func(rp renderer.RenderProgress) {
+			renderImage = rp.RenderImage
+			progress.SetValue(rp.Progress)
 			raster.Refresh()
 		},
 		func() {
@@ -91,6 +103,10 @@ func main() {
 
 	stopButton.OnTapped = func() {
 		traceController.Stop()
+	}
+
+	shaderSelect.OnChanged = func(s string) {
+		traceController.Update()
 	}
 
 	cameraX = binding.NewFloat()
@@ -113,7 +129,7 @@ func main() {
 	lightIntensity.Set(10)
 	lightIntensityLabel, lightIntensitySlider := sliderWithLabel(lightIntensity, traceController, "Light Intensity: %0.1f", 0, 50)
 
-	topBar := container.New(layout.NewHBoxLayout(), &runButton, &stopButton)
+	topBar := container.New(layout.NewHBoxLayout(), &shaderSelect, &runButton, &stopButton)
 	leftBar := container.New(
 		layout.NewVBoxLayout(),
 		cameraXLabel,
@@ -165,7 +181,7 @@ func loadTextures() {
 	grassImage = &gi
 }
 
-func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
+func TestScene(renderConfig renderer.RenderConfig) *renderer.Scene {
 
 	cameraXValue, _ := cameraX.Get()
 	fieldOfViewValue, _ := fieldOfView.Get()
@@ -178,8 +194,8 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 	lookLength := lookFrom.Sub(lookAt).Length()
 
 	camera := camera.New(
-		traceSpec.ImageWidth,
-		traceSpec.ImageHeight,
+		renderConfig.ImageWidth,
+		renderConfig.ImageHeight,
 		fieldOfViewValue,
 		apertureSizeValue,
 		lookLength,
@@ -196,12 +212,16 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 		Tex:               material.SolidColor{ColorValue: geo.NewVec3(1, 1, .8)},
 		IndexOfRefraction: 1.33,
 	}
+	grass := material.Lambertian{Tex: material.ImageTexture{
+		Image:  *grassImage,
+		Mirror: false,
+	}}
 
 	world := hittable.NewHittableList()
 	world.Add(hittable.NewQuad(geo.NewVec3(555, 0, 0), geo.NewVec3(0, 555, 0), geo.NewVec3(0, 0, 555), green))
 	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 0), geo.NewVec3(0, 555, 0), geo.NewVec3(0, 0, 555), red))
 	world.Add(hittable.NewQuad(geo.NewVec3(278-lightSizeValue/2, 554, 278-lightSizeValue/2), geo.NewVec3(lightSizeValue, 0, 0), geo.NewVec3(0, 0, lightSizeValue), light))
-	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 0), geo.NewVec3(555, 0, 0), geo.NewVec3(0, 0, 555), white))
+	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 0), geo.NewVec3(555, 0, 0), geo.NewVec3(0, 0, 555), grass))
 	world.Add(hittable.NewQuad(geo.NewVec3(555, 555, 555), geo.NewVec3(-555, 0, 0), geo.NewVec3(0, 0, -555), white))
 	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 555), geo.NewVec3(555, 0, 0), geo.NewVec3(0, 555, 0), white))
 	world.Add(hittable.NewSphere(geo.NewVec3(200, 265, 200), 100, glass))
@@ -227,11 +247,11 @@ func TestScene(traceSpec spec.TraceSpecification) *spec.Scene {
 		),
 	)
 
-	return &spec.Scene{
+	return &renderer.Scene{
 		World:           &world,
 		Cam:             camera,
 		BackgroundColor: geo.NewVec3(0, 0, 0),
-		Spec:            traceSpec,
+		RenderConfig:    renderConfig,
 	}
 
 }
