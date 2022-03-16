@@ -41,10 +41,10 @@ func main() {
 
 	var renderImage image.Image
 	renderImage = image.NewRGBA(image.Rect(0, 0, 1, 1))
-	raster := canvas.NewRaster(
-		func(w, h int) image.Image {
-			return renderImage
-		})
+
+	rasterW := 0
+	rasterH := 0
+	raster := canvas.Raster{}
 
 	progress := widget.NewProgressBar()
 
@@ -97,6 +97,18 @@ func main() {
 		},
 	)
 
+	raster.Generator =
+		func(w, h int) image.Image {
+
+			if w != rasterW || h != rasterH {
+				rasterW = w
+				rasterH = h
+				traceController.Update()
+			}
+
+			return renderImage
+		}
+
 	runButton.OnTapped = func() {
 		traceController.Update()
 	}
@@ -145,7 +157,7 @@ func main() {
 	)
 
 	container := container.New(layout.NewBorderLayout(topBar, progress, leftBar, nil),
-		topBar, progress, leftBar, raster)
+		topBar, progress, leftBar, &raster)
 
 	window.SetContent(container)
 	window.ShowAndRun()

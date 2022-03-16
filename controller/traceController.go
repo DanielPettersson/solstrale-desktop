@@ -95,14 +95,17 @@ func (tc *TraceController) loop() {
 
 }
 
+// Update aborts current rendering and starts new
 func (tc *TraceController) Update() {
 	tc.update <- true
 }
 
+// Stop rendering
 func (tc *TraceController) Stop() {
 	tc.stop <- true
 }
 
+// Exit stops rendering and quits render loop
 func (tc *TraceController) Exit() {
 	tc.exit <- true
 }
