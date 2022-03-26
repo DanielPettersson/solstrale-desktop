@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	fyne.io/fyne/v2 v2.1.2
-	github.com/DanielPettersson/solstrale v0.1.1
+	github.com/DanielPettersson/solstrale v0.2.0
 )
 
 require (
@@ -15,6 +15,8 @@ require (
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20211024062804-40e447a793be // indirect
 	github.com/godbus/dbus/v5 v5.0.4 // indirect
 	github.com/goki/freetype v0.0.0-20181231101311-fa8a33aabaff // indirect
+	github.com/lucasb-eyer/go-colorful v1.0.3 // indirect
+	github.com/mdouchement/hdr v0.2.3 // indirect
 	github.com/ojrac/opensimplex-go v1.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/srwiley/oksvg v0.0.0-20200311192757-870daf9aa564 // indirect

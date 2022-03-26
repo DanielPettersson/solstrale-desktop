@@ -17,16 +17,19 @@ import (
 	"github.com/DanielPettersson/solstrale/geo"
 	"github.com/DanielPettersson/solstrale/hittable"
 	"github.com/DanielPettersson/solstrale/material"
+	"github.com/DanielPettersson/solstrale/post"
 	"github.com/DanielPettersson/solstrale/renderer"
 )
 
 var (
-	grassImage     *image.Image  = nil
-	cameraX        binding.Float = nil
-	fieldOfView    binding.Float = nil
-	apertureSize   binding.Float = nil
-	lightSize      binding.Float = nil
-	lightIntensity binding.Float = nil
+	grassImage *image.Image = nil
+
+	samplesPerPixel binding.Float = nil
+	cameraX         binding.Float = nil
+	fieldOfView     binding.Float = nil
+	apertureSize    binding.Float = nil
+	lightSize       binding.Float = nil
+	lightIntensity  binding.Float = nil
 )
 
 func main() {
@@ -35,8 +38,8 @@ func main() {
 	app := app.New()
 	window := app.NewWindow("Solstråle")
 	window.Resize(fyne.Size{
-		Width:  600,
-		Height: 400,
+		Width:  800,
+		Height: 600,
 	})
 
 	var renderImage image.Image
@@ -57,9 +60,14 @@ func main() {
 	stopButton.Disable()
 
 	shaderSelect := widget.Select{
-		Options: []string{"PathTracing", "Simple"},
+		Options: []string{"PathTracing", "Simple", "Albedo", "Normal"},
 	}
 	shaderSelect.SetSelectedIndex(0)
+
+	postProcessCheck := widget.Check{
+		Text:    "Postprocess",
+		Checked: true,
+	}
 
 	traceController := controller.NewTraceController(
 		func() *renderer.Scene {
@@ -67,17 +75,32 @@ func main() {
 			width := int(math.Round(float64(raster.Size().Width)))
 
 			var shader renderer.Shader
-			if shaderSelect.SelectedIndex() == 0 {
+			shaderIdx := shaderSelect.SelectedIndex()
+			if shaderIdx == 0 {
 				shader = renderer.PathTracingShader{MaxDepth: 50}
-			} else {
+			} else if shaderIdx == 1 {
 				shader = renderer.SimpleShader{}
+			} else if shaderIdx == 2 {
+				shader = renderer.AlbedoShader{}
+			} else {
+				shader = renderer.NormalShader{}
+			}
+
+			samplesPerPixelVal, _ := samplesPerPixel.Get()
+
+			var postProcessor post.PostProcessor
+			if postProcessCheck.Checked {
+				postProcessor = post.OidnPostProcessor{
+					OidnDenoiseExecutablePath: "/home/daniel/oidnDenoise",
+				}
 			}
 
 			renderConfig := renderer.RenderConfig{
 				ImageWidth:      width,
 				ImageHeight:     height,
-				SamplesPerPixel: 1000,
+				SamplesPerPixel: int(samplesPerPixelVal),
 				Shader:          shader,
+				PostProcessor:   postProcessor,
 			}
 
 			return TestScene(renderConfig)
@@ -121,6 +144,14 @@ func main() {
 		traceController.Update()
 	}
 
+	postProcessCheck.OnChanged = func(c bool) {
+		traceController.Update()
+	}
+
+	samplesPerPixel = binding.NewFloat()
+	samplesPerPixel.Set(50)
+	samplesPerPixelLabel, samplesPerPixelSlider := sliderWithLabel(samplesPerPixel, traceController, "Samples Per Pixel: %0.0f", 1, 1000)
+
 	cameraX = binding.NewFloat()
 	cameraX.Set(278)
 	cameraXLabel, cameraXSlider := sliderWithLabel(cameraX, traceController, "Camera X: %0.1f", 0, 555)
@@ -141,9 +172,11 @@ func main() {
 	lightIntensity.Set(10)
 	lightIntensityLabel, lightIntensitySlider := sliderWithLabel(lightIntensity, traceController, "Light Intensity: %0.1f", 0, 50)
 
-	topBar := container.New(layout.NewHBoxLayout(), &shaderSelect, &runButton, &stopButton)
+	topBar := container.New(layout.NewHBoxLayout(), &shaderSelect, &postProcessCheck, &runButton, &stopButton)
 	leftBar := container.New(
 		layout.NewVBoxLayout(),
+		samplesPerPixelLabel,
+		samplesPerPixelSlider,
 		cameraXLabel,
 		cameraXSlider,
 		fieldOfViewLabel,
