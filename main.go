@@ -25,6 +25,7 @@ var (
 	grassImage *image.Image = nil
 
 	samplesPerPixel binding.Float = nil
+	maxRayBounces   binding.Float = nil
 	cameraX         binding.Float = nil
 	fieldOfView     binding.Float = nil
 	apertureSize    binding.Float = nil
@@ -76,8 +77,10 @@ func main() {
 
 			var shader renderer.Shader
 			shaderIdx := shaderSelect.SelectedIndex()
+
 			if shaderIdx == 0 {
-				shader = renderer.PathTracingShader{MaxDepth: 50}
+				maxDepth, _ := maxRayBounces.Get()
+				shader = renderer.PathTracingShader{MaxDepth: int(maxDepth)}
 			} else if shaderIdx == 1 {
 				shader = renderer.SimpleShader{}
 			} else if shaderIdx == 2 {
@@ -152,6 +155,10 @@ func main() {
 	samplesPerPixel.Set(50)
 	samplesPerPixelLabel, samplesPerPixelSlider := sliderWithLabel(samplesPerPixel, traceController, "Samples Per Pixel: %0.0f", 1, 1000)
 
+	maxRayBounces = binding.NewFloat()
+	maxRayBounces.Set(50)
+	maxRayBouncesLabel, maxRayBouncesSlider := sliderWithLabel(maxRayBounces, traceController, "Max Ray Bounces: %0.0f", 1, 50)
+
 	cameraX = binding.NewFloat()
 	cameraX.Set(278)
 	cameraXLabel, cameraXSlider := sliderWithLabel(cameraX, traceController, "Camera X: %0.1f", 0, 555)
@@ -162,7 +169,7 @@ func main() {
 
 	apertureSize = binding.NewFloat()
 	apertureSize.Set(0)
-	apertureSizeLabel, apertureSizeSlider := sliderWithLabel(apertureSize, traceController, "Aperture Size: %0.1f", 0, 20)
+	apertureSizeLabel, apertureSizeSlider := sliderWithLabel(apertureSize, traceController, "Aperture Size: %0.1f", 0, 200)
 
 	lightSize = binding.NewFloat()
 	lightSize.Set(300)
@@ -177,6 +184,8 @@ func main() {
 		layout.NewVBoxLayout(),
 		samplesPerPixelLabel,
 		samplesPerPixelSlider,
+		maxRayBouncesLabel,
+		maxRayBouncesSlider,
 		cameraXLabel,
 		cameraXSlider,
 		fieldOfViewLabel,
@@ -235,7 +244,7 @@ func TestScene(renderConfig renderer.RenderConfig) *renderer.Scene {
 	lightIntensityValue, _ := lightIntensity.Get()
 
 	lookFrom := geo.NewVec3(cameraXValue, 278, -800)
-	lookAt := geo.NewVec3(278, 278, 0)
+	lookAt := geo.NewVec3(278, 278, 278)
 	lookLength := lookFrom.Sub(lookAt).Length()
 
 	camera := camera.New(
@@ -249,48 +258,41 @@ func TestScene(renderConfig renderer.RenderConfig) *renderer.Scene {
 		geo.NewVec3(0, 1, 0),
 	)
 
-	red := material.Lambertian{Tex: material.SolidColor{ColorValue: geo.NewVec3(.65, .05, .05)}}
 	white := material.Lambertian{Tex: material.SolidColor{ColorValue: geo.NewVec3(.73, .73, .73)}}
-	green := material.Lambertian{Tex: material.SolidColor{ColorValue: geo.NewVec3(.12, .45, .15)}}
 	light := material.DiffuseLight{Emit: material.SolidColor{ColorValue: geo.NewVec3(lightIntensityValue, lightIntensityValue, lightIntensityValue)}}
-	glass := material.Dielectric{
-		Tex:               material.SolidColor{ColorValue: geo.NewVec3(1, 1, .8)},
-		IndexOfRefraction: 1.33,
-	}
 	grass := material.Lambertian{Tex: material.ImageTexture{
 		Image:  *grassImage,
 		Mirror: false,
 	}}
 
 	world := hittable.NewHittableList()
-	world.Add(hittable.NewQuad(geo.NewVec3(555, 0, 0), geo.NewVec3(0, 555, 0), geo.NewVec3(0, 0, 555), green))
-	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 0), geo.NewVec3(0, 555, 0), geo.NewVec3(0, 0, 555), red))
-	world.Add(hittable.NewQuad(geo.NewVec3(278-lightSizeValue/2, 554, 278-lightSizeValue/2), geo.NewVec3(lightSizeValue, 0, 0), geo.NewVec3(0, 0, lightSizeValue), light))
-	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 0), geo.NewVec3(555, 0, 0), geo.NewVec3(0, 0, 555), grass))
-	world.Add(hittable.NewQuad(geo.NewVec3(555, 555, 555), geo.NewVec3(-555, 0, 0), geo.NewVec3(0, 0, -555), white))
-	world.Add(hittable.NewQuad(geo.NewVec3(0, 0, 555), geo.NewVec3(555, 0, 0), geo.NewVec3(0, 555, 0), white))
-	world.Add(hittable.NewSphere(geo.NewVec3(200, 265, 200), 100, glass))
-	world.Add(hittable.NewSphere(geo.NewVec3(200, 265, 200), -80, glass))
+	world.Add(hittable.NewQuad(geo.NewVec3(278-lightSizeValue/2, 800, 278-lightSizeValue/2), geo.NewVec3(lightSizeValue, 0, 0), geo.NewVec3(0, 0, lightSizeValue), light))
+	world.Add(hittable.NewQuad(geo.NewVec3(-750, 0, -200), geo.NewVec3(2000, 0, 0), geo.NewVec3(0, 0, 2000), grass))
+	world.Add(hittable.NewConstantMedium(
+		hittable.NewBox(geo.NewVec3(-1000, -1000, -1000), geo.NewVec3(2000, 2000, 2000), white),
+		.0007, white.Tex,
+	))
 
-	world.Add(
-		hittable.NewTranslation(
-			hittable.NewRotationY(
-				hittable.NewBox(geo.NewVec3(0, 0, 0), geo.NewVec3(165, 330, 165), white),
-				15,
-			),
-			geo.NewVec3(265, 0, 295),
-		),
-	)
+	boxes := hittable.NewHittableList()
 
-	world.Add(
-		hittable.NewTranslation(
-			hittable.NewRotationY(
-				hittable.NewBox(geo.NewVec3(0, 0, 0), geo.NewVec3(165, 165, 165), white),
-				-18,
-			),
-			geo.NewVec3(130, 0, 65),
-		),
-	)
+	step := 555 / 2.
+	halfStep := step / 2.
+	for x := halfStep; x < 555; x += step {
+		for y := halfStep; y < 555; y += step {
+			for z := halfStep; z < 555; z += step {
+				boxes.Add(
+					hittable.NewTranslation(
+						hittable.NewRotationY(
+							hittable.NewBox(geo.NewVec3(0, 0, 0), geo.NewVec3(halfStep, halfStep, halfStep), white),
+							(x+y+z)*0.1,
+						),
+						geo.NewVec3(x, y-x*.1, z),
+					),
+				)
+			}
+		}
+	}
+	world.Add(hittable.NewBoundingVolumeHierarchy(boxes))
 
 	return &renderer.Scene{
 		World:           &world,

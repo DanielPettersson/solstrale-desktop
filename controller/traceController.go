@@ -27,7 +27,7 @@ func NewTraceController(
 	renderStopped func(),
 ) *TraceController {
 	tc := TraceController{
-		update:        make(chan bool, 100),
+		update:        make(chan bool, 1000),
 		stop:          make(chan bool),
 		exit:          make(chan bool),
 		getScene:      getScene,
