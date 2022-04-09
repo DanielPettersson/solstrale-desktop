@@ -5,7 +5,8 @@ go 1.18
 require (
 	fyne.io/fyne/v2 v2.1.2
 	github.com/DanielPettersson/solstrale v0.2.1
-	github.com/DanielPettersson/solstrale-json v0.2.1
+	github.com/DanielPettersson/solstrale-json v0.2.2
+	github.com/robertkrimen/otto v0.0.0-20211024170158-b87d35c0b86f
 )
 
 require (
@@ -32,5 +33,6 @@ require (
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
 	golang.org/x/text v0.3.3 // indirect
+	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
