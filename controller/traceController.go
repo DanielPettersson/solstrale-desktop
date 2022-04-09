@@ -66,31 +66,35 @@ func (tc *TraceController) loop() {
 		renderProgress := make(chan renderer.RenderProgress, 1)
 		abortRender := make(chan bool, 1)
 
-		tc.renderStarted()
+		scene := tc.getScene()
+		if scene != nil {
 
-		go solstrale.RayTrace(tc.getScene(), renderProgress, abortRender)
+			tc.renderStarted()
+			go solstrale.RayTrace(scene, renderProgress, abortRender)
 
-		// Get the progress
-		for p := range renderProgress {
-			tc.progress(p)
-			select {
-			// When an update command, abort the current render
-			// and add another update to restart rendering in next loop
-			case <-tc.update:
-				abortRender <- true
-				tc.update <- true
-			// Just abort the rendering.
-			// Then we will wait for an update or exit in the loop
-			case <-tc.stop:
-				abortRender <- true
-			// Exit, abort and quit the loop
-			case <-tc.exit:
-				abortRender <- true
-				return
-			default:
+			// Get the progress
+			for p := range renderProgress {
+				tc.progress(p)
+				select {
+				// When an update command, abort the current render
+				// and add another update to restart rendering in next loop
+				case <-tc.update:
+					abortRender <- true
+					tc.update <- true
+				// Just abort the rendering.
+				// Then we will wait for an update or exit in the loop
+				case <-tc.stop:
+					abortRender <- true
+				// Exit, abort and quit the loop
+				case <-tc.exit:
+					abortRender <- true
+					return
+				default:
+				}
 			}
+			tc.renderStopped()
 		}
-		tc.renderStopped()
+
 	}
 
 }
