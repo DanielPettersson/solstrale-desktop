@@ -28,18 +28,19 @@ var (
 
 func main() {
 
+	rasterW := 800
+	rasterH := 600
+
 	app := app.New()
 	window := app.NewWindow("Solstråle")
 	window.Resize(fyne.Size{
-		Width:  800,
-		Height: 600,
+		Width:  float32(rasterW),
+		Height: float32(rasterH),
 	})
 
 	var renderImage image.Image
 	renderImage = image.NewRGBA(image.Rect(0, 0, 1, 1))
 
-	rasterW := 800
-	rasterH := 600
 	raster := canvas.Raster{}
 
 	progress := widget.NewProgressBar()
@@ -115,6 +116,7 @@ func main() {
 		container.NewTabItem("Input", jsonInputEntry),
 		container.NewTabItem("Output", &raster),
 	)
+	tabsContainer.SelectIndex(1)
 
 	container := container.New(layout.NewBorderLayout(topBar, progress, nil, nil),
 		topBar, progress, tabsContainer)
