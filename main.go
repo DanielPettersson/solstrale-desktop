@@ -2,7 +2,6 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
 	"image"
 
 	"fyne.io/fyne/v2"
@@ -13,17 +12,13 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/DanielPettersson/solstrale-desktop/controller"
-	solstralejson "github.com/DanielPettersson/solstrale-json"
 	"github.com/DanielPettersson/solstrale/renderer"
-	"github.com/robertkrimen/otto"
 	_ "github.com/robertkrimen/otto/underscore"
 )
 
 var (
 	//go:embed default-scene.js
 	defaultScene string
-	//go:embed solstrale.js
-	solstraleJs string
 )
 
 func main() {
@@ -57,23 +52,8 @@ func main() {
 	jsonInputEntry.SetText(defaultScene)
 
 	traceController := controller.NewTraceController(
-		func() *renderer.Scene {
-
-			vm := otto.New()
-			vm.Set("windowWidth", rasterW)
-			vm.Set("windowHeight", rasterH)
-
-			js := fmt.Sprintf("%v\n%v\nJSON.stringify(scene)", solstraleJs, jsonInputEntry.Text)
-			sceneJson, err := vm.Run(js)
-			if err != nil {
-				dialog.ShowError(err, window)
-			}
-
-			scene, err := solstralejson.ToScene([]byte(sceneJson.String()))
-			if err != nil {
-				dialog.ShowError(err, window)
-			}
-			return scene
+		func() (string, int, int) {
+			return jsonInputEntry.Text, rasterW, rasterH
 		},
 		func(rp renderer.RenderProgress) {
 			renderImage = rp.RenderImage
@@ -87,6 +67,9 @@ func main() {
 		func() {
 			runButton.Enable()
 			stopButton.Disable()
+		},
+		func(err error) {
+			dialog.ShowError(err, window)
 		},
 	)
 
