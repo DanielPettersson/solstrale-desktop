@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	fyne.io/fyne/v2 v2.1.4
-	github.com/DanielPettersson/solstrale v0.2.1
-	github.com/DanielPettersson/solstrale-json v0.2.5
+	github.com/DanielPettersson/solstrale v0.3.2
+	github.com/DanielPettersson/solstrale-json v0.3.2
 	github.com/robertkrimen/otto v0.0.0-20211024170158-b87d35c0b86f
 )
 
@@ -26,6 +26,7 @@ require (
 	github.com/srwiley/oksvg v0.0.0-20220128195007-1f435e4c2b44 // indirect
 	github.com/srwiley/rasterx v0.0.0-20220128185129-2efea2b9ea41 // indirect
 	github.com/stretchr/testify v1.7.1 // indirect
+	github.com/udhos/gwob v0.0.0-20200524213453-619810f75817 // indirect
 	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/yuin/goldmark v1.4.11 // indirect
 	golang.org/x/image v0.0.0-20220321031419-a8550c1d254a // indirect

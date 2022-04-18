@@ -116,6 +116,23 @@ function quad(corner, dirU, dirV, mat) {
     }
 }
 
+function triangle(v0, v1, v2, mat) {
+    return {
+        type: "triangle",
+        v0: v0,
+        v1: v1,
+        v2: v2,
+        mat: mat
+    }
+}
+
+function objModel(path) {
+    return {
+        type: "objModel",
+        path: path
+    }
+}
+
 function sphere(center, radius, mat) {
     return {
         type: "sphere",
