@@ -24,6 +24,7 @@ type TraceController struct {
 	exit          chan bool
 	getSceneJs    func() (string, int, int)
 	progress      func(renderer.RenderProgress)
+	buildingScene func()
 	renderStarted func()
 	renderStopped func()
 	renderError   func(error)
@@ -34,16 +35,18 @@ type TraceController struct {
 func NewTraceController(
 	getSceneJs func() (string, int, int),
 	progress func(renderer.RenderProgress),
+	buildingScene func(),
 	renderStarted func(),
 	renderStopped func(),
 	renderError func(error),
 ) *TraceController {
 	tc := TraceController{
 		update:        make(chan bool, 1000),
-		stop:          make(chan bool),
-		exit:          make(chan bool),
+		stop:          make(chan bool, 1),
+		exit:          make(chan bool, 1),
 		getSceneJs:    getSceneJs,
 		progress:      progress,
+		buildingScene: buildingScene,
 		renderStarted: renderStarted,
 		renderStopped: renderStopped,
 		renderError:   renderError,
@@ -79,7 +82,7 @@ func (tc *TraceController) loop() {
 		renderProgress := make(chan renderer.RenderProgress, 1)
 		abortRender := make(chan bool, 1)
 
-		tc.renderStarted()
+		tc.buildingScene()
 
 		sceneJs, width, height := tc.getSceneJs()
 
@@ -101,6 +104,7 @@ func (tc *TraceController) loop() {
 
 			if scene != nil {
 
+				tc.renderStarted()
 				go solstrale.RayTrace(scene, renderProgress, abortRender)
 
 				// Get the progress

@@ -62,6 +62,10 @@ func main() {
 		},
 		func() {
 			runButton.Disable()
+			stopButton.Disable()
+		},
+		func() {
+			runButton.Disable()
 			stopButton.Enable()
 		},
 		func() {
@@ -85,10 +89,6 @@ func main() {
 			return renderImage
 		}
 
-	runButton.OnTapped = func() {
-		traceController.Update()
-	}
-
 	stopButton.OnTapped = func() {
 		traceController.Stop()
 	}
@@ -100,6 +100,11 @@ func main() {
 		container.NewTabItem("Output", &raster),
 	)
 	tabsContainer.SelectIndex(1)
+
+	runButton.OnTapped = func() {
+		tabsContainer.SelectIndex(1)
+		traceController.Update()
+	}
 
 	container := container.New(layout.NewBorderLayout(topBar, progress, nil, nil),
 		topBar, progress, tabsContainer)
