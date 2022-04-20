@@ -3,17 +3,10 @@ package controller
 
 import (
 	_ "embed"
-	"fmt"
 
 	"github.com/DanielPettersson/solstrale"
-	solstralejson "github.com/DanielPettersson/solstrale-json"
+	"github.com/DanielPettersson/solstrale-desktop/scene"
 	"github.com/DanielPettersson/solstrale/renderer"
-	"github.com/robertkrimen/otto"
-)
-
-var (
-	//go:embed solstrale.js
-	solstraleJs string
 )
 
 // TraceController is used to control the flow of raytracing
@@ -22,7 +15,7 @@ type TraceController struct {
 	update        chan bool
 	stop          chan bool
 	exit          chan bool
-	getSceneJs    func() (string, int, int)
+	getImageSize  func() (int, int)
 	progress      func(renderer.RenderProgress)
 	buildingScene func()
 	renderStarted func()
@@ -33,7 +26,7 @@ type TraceController struct {
 // NewTraceController creates a new TraceController with supplied
 // callback hooks for rendering events
 func NewTraceController(
-	getSceneJs func() (string, int, int),
+	getImageSize func() (int, int),
 	progress func(renderer.RenderProgress),
 	buildingScene func(),
 	renderStarted func(),
@@ -44,7 +37,7 @@ func NewTraceController(
 		update:        make(chan bool, 1000),
 		stop:          make(chan bool, 1),
 		exit:          make(chan bool, 1),
-		getSceneJs:    getSceneJs,
+		getImageSize:  getImageSize,
 		progress:      progress,
 		buildingScene: buildingScene,
 		renderStarted: renderStarted,
@@ -84,48 +77,34 @@ func (tc *TraceController) loop() {
 
 		tc.buildingScene()
 
-		sceneJs, width, height := tc.getSceneJs()
-
-		vm := otto.New()
-		vm.Set("windowWidth", width)
-		vm.Set("windowHeight", height)
-
-		js := fmt.Sprintf("%v\n%v\nJSON.stringify(scene)", solstraleJs, sceneJs)
-		sceneJson, err := vm.Run(js)
-
+		scene, err := scene.Scene(tc.getImageSize())
 		if err != nil {
 			tc.renderError(err)
+		}
 
-		} else {
-			scene, err := solstralejson.ToScene([]byte(sceneJson.String()))
-			if err != nil {
-				tc.renderError(err)
-			}
+		if scene != nil {
 
-			if scene != nil {
+			tc.renderStarted()
+			go solstrale.RayTrace(scene, renderProgress, abortRender)
 
-				tc.renderStarted()
-				go solstrale.RayTrace(scene, renderProgress, abortRender)
-
-				// Get the progress
-				for p := range renderProgress {
-					tc.progress(p)
-					select {
-					// When an update command, abort the current render
-					// and add another update to restart rendering in next loop
-					case <-tc.update:
-						abortRender <- true
-						tc.update <- true
-					// Just abort the rendering.
-					// Then we will wait for an update or exit in the loop
-					case <-tc.stop:
-						abortRender <- true
-					// Exit, abort and quit the loop
-					case <-tc.exit:
-						abortRender <- true
-						return
-					default:
-					}
+			// Get the progress
+			for p := range renderProgress {
+				tc.progress(p)
+				select {
+				// When an update command, abort the current render
+				// and add another update to restart rendering in next loop
+				case <-tc.update:
+					abortRender <- true
+					tc.update <- true
+				// Just abort the rendering.
+				// Then we will wait for an update or exit in the loop
+				case <-tc.stop:
+					abortRender <- true
+				// Exit, abort and quit the loop
+				case <-tc.exit:
+					abortRender <- true
+					return
+				default:
 				}
 			}
 		}

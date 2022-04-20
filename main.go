@@ -13,12 +13,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/DanielPettersson/solstrale-desktop/controller"
 	"github.com/DanielPettersson/solstrale/renderer"
-	_ "github.com/robertkrimen/otto/underscore"
-)
-
-var (
-	//go:embed default-scene.js
-	defaultScene string
 )
 
 func main() {
@@ -48,12 +42,9 @@ func main() {
 	}
 	stopButton.Disable()
 
-	jsonInputEntry := widget.NewMultiLineEntry()
-	jsonInputEntry.SetText(defaultScene)
-
 	traceController := controller.NewTraceController(
-		func() (string, int, int) {
-			return jsonInputEntry.Text, rasterW, rasterH
+		func() (int, int) {
+			return rasterW, rasterH
 		},
 		func(rp renderer.RenderProgress) {
 			renderImage = rp.RenderImage
@@ -95,19 +86,12 @@ func main() {
 
 	topBar := container.New(layout.NewHBoxLayout(), &runButton, &stopButton)
 
-	tabsContainer := container.NewAppTabs(
-		container.NewTabItem("Input", jsonInputEntry),
-		container.NewTabItem("Output", &raster),
-	)
-	tabsContainer.SelectIndex(1)
-
 	runButton.OnTapped = func() {
-		tabsContainer.SelectIndex(1)
 		traceController.Update()
 	}
 
 	container := container.New(layout.NewBorderLayout(topBar, progress, nil, nil),
-		topBar, progress, tabsContainer)
+		topBar, progress, &raster)
 
 	window.SetContent(container)
 	window.ShowAndRun()
