@@ -34,34 +34,15 @@ func main() {
 
 	progress := widget.NewProgressBar()
 
-	runButton := widget.Button{
-		Text: "Run",
-	}
-	stopButton := widget.Button{
-		Text: "Stop",
-	}
-	stopButton.Disable()
-
 	traceController := controller.NewTraceController(
 		func() (int, int) {
 			return rasterW, rasterH
 		},
 		func(rp renderer.RenderProgress) {
+
 			renderImage = rp.RenderImage
 			progress.SetValue(rp.Progress)
 			raster.Refresh()
-		},
-		func() {
-			runButton.Disable()
-			stopButton.Disable()
-		},
-		func() {
-			runButton.Disable()
-			stopButton.Enable()
-		},
-		func() {
-			runButton.Enable()
-			stopButton.Disable()
 		},
 		func(err error) {
 			dialog.ShowError(err, window)
@@ -80,18 +61,8 @@ func main() {
 			return renderImage
 		}
 
-	stopButton.OnTapped = func() {
-		traceController.Stop()
-	}
-
-	topBar := container.New(layout.NewHBoxLayout(), &runButton, &stopButton)
-
-	runButton.OnTapped = func() {
-		traceController.Update()
-	}
-
-	container := container.New(layout.NewBorderLayout(topBar, progress, nil, nil),
-		topBar, progress, &raster)
+	container := container.New(layout.NewBorderLayout(nil, progress, nil, nil),
+		progress, &raster)
 
 	window.SetContent(container)
 	window.ShowAndRun()

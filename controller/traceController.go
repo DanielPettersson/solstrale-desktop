@@ -2,8 +2,6 @@
 package controller
 
 import (
-	_ "embed"
-
 	"github.com/DanielPettersson/solstrale"
 	"github.com/DanielPettersson/solstrale-desktop/scene"
 	"github.com/DanielPettersson/solstrale/renderer"
@@ -12,15 +10,11 @@ import (
 // TraceController is used to control the flow of raytracing
 // Allowing multithreaded code to safely update and stopping the rendering
 type TraceController struct {
-	update        chan bool
-	stop          chan bool
-	exit          chan bool
-	getImageSize  func() (int, int)
-	progress      func(renderer.RenderProgress)
-	buildingScene func()
-	renderStarted func()
-	renderStopped func()
-	renderError   func(error)
+	update       chan bool
+	exit         chan bool
+	getImageSize func() (int, int)
+	progress     func(renderer.RenderProgress)
+	renderError  func(error)
 }
 
 // NewTraceController creates a new TraceController with supplied
@@ -28,27 +22,26 @@ type TraceController struct {
 func NewTraceController(
 	getImageSize func() (int, int),
 	progress func(renderer.RenderProgress),
-	buildingScene func(),
-	renderStarted func(),
-	renderStopped func(),
 	renderError func(error),
 ) *TraceController {
 	tc := TraceController{
-		update:        make(chan bool, 1000),
-		stop:          make(chan bool, 1),
-		exit:          make(chan bool, 1),
-		getImageSize:  getImageSize,
-		progress:      progress,
-		buildingScene: buildingScene,
-		renderStarted: renderStarted,
-		renderStopped: renderStopped,
-		renderError:   renderError,
+		update:       make(chan bool, 1000),
+		exit:         make(chan bool, 1),
+		getImageSize: getImageSize,
+		progress:     progress,
+		renderError:  renderError,
 	}
 	go tc.loop()
 	return &tc
 }
 
 func (tc *TraceController) loop() {
+
+	scene, err := scene.Scene()
+	if err != nil {
+		tc.renderError(err)
+		return
+	}
 
 	// Renderloop for controlling the render
 	for {
@@ -75,51 +68,37 @@ func (tc *TraceController) loop() {
 		renderProgress := make(chan renderer.RenderProgress, 1)
 		abortRender := make(chan bool, 1)
 
-		tc.buildingScene()
+		imageWidth, imageHeight := tc.getImageSize()
+		go solstrale.RayTrace(imageWidth, imageHeight, scene, renderProgress, abortRender)
 
-		scene, err := scene.Scene(tc.getImageSize())
-		if err != nil {
-			tc.renderError(err)
-		}
+		// Get the progress
+		for p := range renderProgress {
 
-		if scene != nil {
+			if p.Error != nil {
+				tc.renderError(p.Error)
+				return
+			}
 
-			tc.renderStarted()
-			go solstrale.RayTrace(scene, renderProgress, abortRender)
-
-			// Get the progress
-			for p := range renderProgress {
-				tc.progress(p)
-				select {
-				// When an update command, abort the current render
-				// and add another update to restart rendering in next loop
-				case <-tc.update:
-					abortRender <- true
-					tc.update <- true
-				// Just abort the rendering.
-				// Then we will wait for an update or exit in the loop
-				case <-tc.stop:
-					abortRender <- true
-				// Exit, abort and quit the loop
-				case <-tc.exit:
-					abortRender <- true
-					return
-				default:
-				}
+			tc.progress(p)
+			select {
+			// When an update command, abort the current render
+			// and add another update to restart rendering in next loop
+			case <-tc.update:
+				abortRender <- true
+				tc.update <- true
+			// Exit, abort and quit the loop
+			case <-tc.exit:
+				abortRender <- true
+				return
+			default:
 			}
 		}
-		tc.renderStopped()
 	}
 }
 
 // Update aborts current rendering and starts new
 func (tc *TraceController) Update() {
 	tc.update <- true
-}
-
-// Stop rendering
-func (tc *TraceController) Stop() {
-	tc.stop <- true
 }
 
 // Exit stops rendering and quits render loop
