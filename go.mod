@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	fyne.io/fyne/v2 v2.1.4
-	github.com/DanielPettersson/solstrale v0.3.6
+	github.com/DanielPettersson/solstrale v0.3.7
 )
 
 require (
